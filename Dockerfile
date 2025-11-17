@@ -3,7 +3,8 @@
 #   Uses Maven + JDK to build
 #   the Spring Boot application
 ###############################
-FROM maven:3.9.6-eclipse-temurin-21 AS build
+FROM maven:3.9-eclipse-temurin-25 AS build
+
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -27,7 +28,7 @@ RUN mvn clean package -DskipTests
 #  Lightweight image; contains
 #  only JRE + final application
 ###############################
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jdk
 
 # Set working directory inside runtime image
 WORKDIR /app

@@ -14,7 +14,7 @@
 	<version>0.0.1-SNAPSHOT</version>
 
 	<properties>
-		<java.version>21</java.version> 
+		<java.version>25</java.version> 
 		<!-- Set Java version to 21 to enable compatibility with Eclipse Temurin 21 JDK 
 		used for multi-stage Docker builds (can update if required)-->
 	</properties>
