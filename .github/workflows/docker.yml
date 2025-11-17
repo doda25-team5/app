@@ -32,4 +32,4 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/doda25-team5/sms-backend:latest
+          tags: ghcr.io/doda25-team5/sms-frontend:latest
