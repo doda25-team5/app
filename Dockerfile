@@ -1,10 +1,7 @@
 ###############################
-#           BUILD STAGE
-#   Uses Maven + JDK to build
-#   the Spring Boot application
+#         BUILD STAGE
 ###############################
 FROM maven:3.9-eclipse-temurin-25 AS build
-
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -22,11 +19,8 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 
-
 ###############################
-#          RUNTIME STAGE
-#  Lightweight image; contains
-#  only JRE + final application
+#        RUNTIME STAGE
 ###############################
 FROM eclipse-temurin:25-jdk
 
