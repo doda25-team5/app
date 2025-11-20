@@ -1,23 +1,28 @@
-###############################
-#         BUILD STAGE
-###############################
-FROM maven:3.9-eclipse-temurin-25 AS build
+FROM maven:3.9-eclipse-temurin-25-alpine AS base
 
-# Set the working directory inside the container
+######################
+# STAGE 1: Get Dependencies
+FROM base AS dependencies
+
 WORKDIR /app
 
-# Copy only pom.xml first (enables dependency caching)
 COPY pom.xml .
 
-# Pre-download all Maven dependencies to avoid re-downloading on every build
-RUN mvn dependency:go-offline
+# Download parent pom and transitive dependencies + other needed Maven plugins for mvn package to work offline
+RUN mvn -B -Dmaven.repo.local=.m2repo dependency:resolve dependency:resolve-plugins
 
-# Copy the source code AFTER downloading dependencies (better layer caching)
+######################
+# STAGE 2: Build
+FROM base AS build
+
+WORKDIR /app
+
+COPY --from=dependencies /app /app
+
 COPY src ./src
 
-# Compile and package application into an executable JAR, skipping tests
-RUN mvn clean package -DskipTests
-
+# skip tests for faster build and give location of local Maven repository
+RUN mvn -o -DskipTests -Dmaven.repo.local=.m2repo package
 
 ###############################
 #        RUNTIME STAGE
