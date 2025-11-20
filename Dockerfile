@@ -11,7 +11,7 @@ COPY pom.xml .
 # Download parent pom and transitive dependencies + other needed Maven plugins for mvn package to work offline
 RUN mvn -B -Dmaven.repo.local=.m2repo dependency:resolve dependency:resolve-plugins
 
-######################
+#######################
 # STAGE 2: Build
 FROM base AS build
 
