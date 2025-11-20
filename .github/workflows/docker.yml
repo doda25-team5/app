@@ -1,4 +1,5 @@
-name: Build & Push Multi-Arch Image to GHCR
+# .github/workflows/docker.yml  (or whatever your file is called)
+name: Build & Push Multi-Arch Image
 
 on:
   push:
@@ -8,31 +9,15 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout app repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Checkout lib-version repo
-        uses: actions/checkout@v4
-        with:
-          repository: doda25-team5/lib-version
-          path: lib-version
-
-      - name: Set up Java
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
           java-version: 17
+          distribution: temurin
           cache: maven
-
-      - name: Build lib-version JAR + POM
-        run: mvn -B -f lib-version/pom.xml package -DskipTests
-
-      - name: Copy lib-version artifacts for Docker
-        run: |
-          cp lib-version/target/lib-version-1.0.1.jar ./lib-version.jar
-          cp lib-version/pom.xml ./lib-version.pom
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -40,14 +25,14 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Multi-Arch Image
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .

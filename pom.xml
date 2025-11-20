@@ -20,6 +20,8 @@
 		<repository>
 			<id>github-doda25</id>
 			<url>https://maven.pkg.github.com/doda25-team5/lib-version</url>
+			<releases><enabled>true</enabled></releases>
+    		<snapshots><enabled>true</enabled></snapshots>
 		</repository>
 	</repositories>
 
