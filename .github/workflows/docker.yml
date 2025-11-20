@@ -12,7 +12,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+      - name: Download lib-version artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: lib-version
+          path: ./lib-artifact
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -25,7 +29,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
+      
       - name: Build and Push Multi-Arch Image
         uses: docker/build-push-action@v5
         with:
