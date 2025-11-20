@@ -21,4 +21,4 @@ RUN mvn -B -Dmaven.repo.local=.m2repo dependency:resolve dependency:resolve-plug
 
 # Copy source and build offline
 COPY src ./src
-RUN mvn -o -DskipTests -Dmaven.repo.local=.m2repo package
+RUN mvn -DskipTests -Dmaven.repo.local=.m2repo clean package
