@@ -8,28 +8,45 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-#
+
     steps:
-      - name: Checkout code
+      - name: Checkout app repo
         uses: actions/checkout@v4
-      - name: Download lib-version artifact
-        uses: actions/download-artifact@v4
+
+      - name: Checkout lib-version repo
+        uses: actions/checkout@v4
         with:
-          name: lib-version
-          path: ./lib-artifact
+          repository: doda25-team5/lib-version
+          path: lib-version
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      - name: Build lib-version JAR + POM
+        run: mvn -B -f lib-version/pom.xml package -DskipTests
+
+      - name: Copy lib-version artifacts for Docker
+        run: |
+          cp lib-version/target/lib-version-1.0.1.jar ./lib-version.jar
+          cp lib-version/pom.xml ./lib-version.pom
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Set up Docker Buildx
+      - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GHCR
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Build and Push Multi-Arch Image
         uses: docker/build-push-action@v5
         with:

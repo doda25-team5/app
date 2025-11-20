@@ -6,13 +6,14 @@ FROM base AS dependencies
 
 WORKDIR /app
 
-# copy the manually provided lib-version JAR + POM
-COPY lib-artifact /tmp/lib
+# copy provided lib-version jar and pom
+COPY lib-version.jar /tmp/lib-version.jar
+COPY lib-version.pom /tmp/lib-version.pom
 
-# install the artifact into local m2 repo
+# install into local maven repo
 RUN mvn install:install-file \
-    -Dfile=/tmp/lib/lib-version-1.0.1.jar \
-    -DpomFile=/tmp/lib/pom.xml \
+    -Dfile=/tmp/lib-version.jar \
+    -DpomFile=/tmp/lib-version.pom \
     -DgroupId=doda25.team5 \
     -DartifactId=lib-version \
     -Dversion=1.0.1 \
@@ -20,7 +21,7 @@ RUN mvn install:install-file \
 
 COPY pom.xml .
 
-# download all other dependencies (will now work because lib-version exists)
+# Download dependencies and plugins offline
 RUN mvn -B -Dmaven.repo.local=.m2repo \
     dependency:resolve \
     dependency:resolve-plugins
