@@ -10,8 +10,8 @@ WORKDIR /app
 COPY pom.xml .
 
 # Pre-download all Maven dependencies to avoid re-downloading on every build
-RUN mvn dependency:go-offline
-
+# RUN mvn dependency:go-offline
+RUN apt-get update && apt-get install -y maven && rm -rf /var/lib/apt/lists/*
 # Copy the source code AFTER downloading dependencies (better layer caching)
 COPY src ./src
 
