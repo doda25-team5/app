@@ -12,24 +12,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Download lib-version artifact
-        uses: actions/download-artifact@v4
-        with:
-         name: lib-version-jar
-         path: ./libs  # put JAR into a folder
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-      - name: Install lib-version into local Maven repo
-        run: |
-          mvn install:install-file \
-            -Dfile=./libs/lib-version-*.jar \
-            -DgroupId=doda25.team5 \
-            -DartifactId=lib-version \
-            -Dversion=1.0.1 \
-            -Dpackaging=jar
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
