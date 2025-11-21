@@ -3,21 +3,37 @@ name: Build & Push Multi-Arch Image
 on:
   push:
     tags:
-      - 'v*' 
+      - 'v*'
   workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read      # 👈 required to read Maven packages
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 17 with GitHub Packages auth
         uses: actions/setup-java@v4
         with:
           java-version: 17
           distribution: temurin
           cache: maven
+          server-id: github                 
+          server-username: GITHUB_ACTOR     
+          server-password: MAVEN_TOKEN      
+          settings-path: ${{ github.workspace }}
+
+      - name: Build app (downloads lib-version)
+        run: mvn -B package -DskipTests -s $GITHUB_WORKSPACE/settings.xml
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          MAVEN_TOKEN: ${{ secrets.MAVEN_DEPLOY_TOKEN }}
+
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -32,7 +48,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push docker image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -40,4 +56,4 @@ jobs:
           push: true
           tags: ghcr.io/doda25-team5/sms-frontend:latest
           secrets: |
-            GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+            MAVEN_TOKEN=${{ secrets.MAVEN_DEPLOY_TOKEN }}
