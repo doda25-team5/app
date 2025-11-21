@@ -31,7 +31,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
@@ -41,6 +40,3 @@ jobs:
           tags: |
             ghcr.io/doda25-team5/sms-frontend:latest
             ghcr.io/doda25-team5/sms-frontend:${{ github.ref_name }}
-          secrets: |
-            maven_settings=settings.xml
-          provenance: false
