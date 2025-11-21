@@ -34,7 +34,7 @@ jobs:
 
     - name: Build & Push image
       run: |
-        IMG="ghcr.io/doda25-team5/sms-backend"
+        IMG="ghcr.io/doda25-team5/sms-frontend"
 
         docker build \
           --secret id=GITHUB_TOKEN,env=GITHUB_TOKEN \
