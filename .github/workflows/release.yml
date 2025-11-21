@@ -31,17 +31,20 @@ jobs:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ github.token }}
+          
+    - name: Set up QEMU (for multi-arch)
+      uses: docker/setup-qemu-action@v3
 
-    - name: Build & Push image
-      run: |
-        IMG="ghcr.io/doda25-team5/sms-frontend"
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
 
-        docker build \
-          --secret id=GITHUB_TOKEN,env=GITHUB_TOKEN \
-          --tag $IMG:${{ env.version }} \
-          --tag $IMG:${{ env.version_major }}.${{ env.version_minor }}.latest \
-          --tag $IMG:${{ env.version_major }}.latest \
-          --tag $IMG:latest \
-          .
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ghcr.io/doda25-team5/sms-frontend:latest
+        secrets: |
+          GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
 
-        docker push --all-tags $IMG
