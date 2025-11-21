@@ -8,7 +8,7 @@ on:
 
 permissions:
   contents: read
-  packages: read      
+  packages: write   
 
 jobs:
   build:
@@ -17,26 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # JAVA 25 + MAVEN AUTH
-      - name: Set up JDK 25 with GitHub Packages auth
-        uses: actions/setup-java@v4
-        with:
-          java-version: '25'
-          distribution: 'temurin'
-          cache: 'maven'
-          server-id: github
-          server-username: GITHUB_ACTOR
-          server-password: MAVEN_TOKEN
-          settings-path: ${{ github.workspace }}
-
-      # MAVEN BUILD (downloads lib-version)
-      - name: Build app
-        run: mvn -B package -DskipTests -s $GITHUB_WORKSPACE/settings.xml
-        env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          MAVEN_TOKEN: ${{ secrets.MAVEN_DEPLOY_TOKEN }}
-
-      # DOCKER TOOLS
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -50,7 +30,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # DOCKER MULTI-ARCH BUILD
       - name: Build and push docker image
         uses: docker/build-push-action@v5
         with:
@@ -60,3 +39,4 @@ jobs:
           tags: ghcr.io/doda25-team5/sms-frontend:latest
           secrets: |
             MAVEN_TOKEN=${{ secrets.MAVEN_DEPLOY_TOKEN }}
+            GITHUB_ACTOR=${{ github.actor }}
