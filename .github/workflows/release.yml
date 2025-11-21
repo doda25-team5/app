@@ -8,7 +8,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # Needed so docker build can "env-mount" the token
     env:
       GITHUB_TOKEN: ${{ github.token }}
 
@@ -35,10 +34,8 @@ jobs:
 
     - name: Build & Push image
       run: |
-        IMG="ghcr.io/${{ github.repository }}"
-        IMG=${IMG@L}
+        IMG="ghcr.io/doda25-team5/sms-backend"
 
-        # Build image with BuildKit secret for Maven GitHub authentication
         docker build \
           --secret id=GITHUB_TOKEN,env=GITHUB_TOKEN \
           --tag $IMG:${{ env.version }} \
@@ -47,5 +44,4 @@ jobs:
           --tag $IMG:latest \
           .
 
-        # Push all tags
         docker push --all-tags $IMG
