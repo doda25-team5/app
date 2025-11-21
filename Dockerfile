@@ -33,7 +33,7 @@ WORKDIR /app
 
 # Default environment variables (can be overridden at runtime)
 ENV APP_PORT=8080
-ENV MODEL_HOST=http://host.docker.internal:8081
+ENV MODEL_HOST=http://model-service:8081
 
 # Copy only the packaged JAR from the build stage (not source code or build tools)
 COPY --from=build /app/target/*.jar app.jar
