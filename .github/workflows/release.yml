@@ -44,7 +44,10 @@ jobs:
         context: .
         platforms: linux/amd64,linux/arm64
         push: true
-        tags: ghcr.io/doda25-team5/sms-frontend:latest
+        tags: |
+          ghcr.io/doda25-team5/sms-frontend:${{ env.version }}
+          ghcr.io/doda25-team5/sms-frontend:${{ env.version_major }}.${{ env.version_minor }}.latest
+          ghcr.io/doda25-team5/sms-frontend:${{ env.version_major }}.latest
+          ghcr.io/doda25-team5/sms-frontend:latest
         secrets: |
           GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
-
