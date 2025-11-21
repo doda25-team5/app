@@ -43,9 +43,9 @@
 		</dependency>
 
 		<dependency>
-    		<groupId>doda25.team5</groupId>
-    		<artifactId>lib-version</artifactId>
-    		<version>1.0.0</version> 
+		  <groupId>com.github.doda25-team5</groupId>
+		  <artifactId>lib-version</artifactId>
+		  <version>1.0.0</version>
 		</dependency>
 	</dependencies>
 
