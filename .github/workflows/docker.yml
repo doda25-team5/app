@@ -38,6 +38,9 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/doda25-team5/sms-frontend:latest
+          tags: |
+            ghcr.io/doda25-team5/sms-frontend:latest
+            ghcr.io/doda25-team5/sms-frontend:${{ github.ref_name }}
           secrets: |
-            maven_settings=settings.xml   #
+            "maven_settings=settings.xml"    # ← QUOTES REQUIRED!
+          provenance: false       # no quotes → GitHub interprets the content of the file as the secret value
