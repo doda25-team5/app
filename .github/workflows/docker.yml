@@ -3,7 +3,7 @@ name: Build & Push Multi-Arch Image
 
 on:
   push:
-    branches: ["f4"]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
