@@ -1,9 +1,9 @@
-# .github/workflows/docker.yml  (or whatever your file is called)
 name: Build & Push Multi-Arch Image
 
 on:
   push:
-    branches: ["f4"]
+    branches:
+      - f4 
   workflow_dispatch:
 
 jobs:
