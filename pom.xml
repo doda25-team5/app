@@ -11,11 +11,20 @@
 	</parent>
 	<groupId>sms</groupId>
 	<artifactId>frontend</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0.1</version>
 
 	<properties>
 		<java.version>25</java.version> 
 	</properties>
+	<repositories>
+		<repository>
+			<id>github</id>
+			<url>https://maven.pkg.github.com/doda25-team5/lib-version</url>
+			<releases><enabled>true</enabled></releases>
+    		<snapshots><enabled>true</enabled></snapshots>
+		</repository>
+	</repositories>
+
 
 	<dependencies>
 		<dependency>
@@ -34,7 +43,7 @@
 		</dependency>
 
 		<dependency>
-    		<groupId>org.example</groupId>
+    		<groupId>doda25.team5</groupId>
     		<artifactId>lib-version</artifactId>
     		<version>1.0.1</version> 
 		</dependency>

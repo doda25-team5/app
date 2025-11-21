@@ -1,34 +1,37 @@
 ###############################
 #         BUILD STAGE
 ###############################
-FROM maven:3.9-eclipse-temurin-25 AS build
+FROM maven:3.9-eclipse-temurin-25-alpine AS build
 
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy only pom.xml first (enables dependency caching)
-COPY pom.xml .
+# Copy only pom.xml and settings.xml (for dependency caching and GitHub token)
+COPY pom.xml settings.xml ./
 
-# Pre-download all Maven dependencies to avoid re-downloading on every build
-RUN mvn dependency:go-offline
+# Pre-download all Maven dependencies including private GitHub repos
+RUN --mount=type=secret,id=GITHUB_TOKEN \
+    export GITHUB_TOKEN=$(cat /run/secrets/GITHUB_TOKEN) && \
+    mvn -B -s settings.xml dependency:go-offline
 
-# Copy the source code AFTER downloading dependencies (better layer caching)
+# Copy the source code AFTER downloading dependencies (better caching)
 COPY src ./src
 
 # Compile and package application into an executable JAR, skipping tests
-RUN mvn clean package -DskipTests
+RUN --mount=type=secret,id=GITHUB_TOKEN \
+    export GITHUB_TOKEN=$(cat /run/secrets/GITHUB_TOKEN) && \
+    mvn -B -s settings.xml clean package -DskipTests
 
 
 ###############################
 #        RUNTIME STAGE
 ###############################
-FROM eclipse-temurin:25-jdk
+FROM eclipse-temurin:25-jdk-alpine
 
 # Set working directory inside runtime image
 WORKDIR /app
 
-# Default environment variables (may be overridden at runtime)
-# F6: Flexible configuration
+# Default environment variables (can be overridden at runtime)
 ENV APP_PORT=8080
 ENV MODEL_HOST=http://host.docker.internal:8081
 
@@ -39,5 +42,4 @@ COPY --from=build /app/target/*.jar app.jar
 EXPOSE ${APP_PORT}
 
 # Start the Spring Boot application using the configured port + model host
-# `sh -c` allows environment variables to be expanded inside the command
 ENTRYPOINT ["sh", "-c", "java -jar app.jar --server.port=${APP_PORT} --model.host=${MODEL_HOST}"]

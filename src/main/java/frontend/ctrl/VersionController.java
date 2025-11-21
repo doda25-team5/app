@@ -1,6 +1,6 @@
 package frontend.ctrl;
 
-import org.example.libversion.VersionUtil;
+import doda25.team5.VersionUtil;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
