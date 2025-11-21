@@ -1,4 +1,3 @@
-# .github/workflows/docker.yml  (or whatever your file is called)
 name: Build & Push Multi-Arch Image
 
 on:
