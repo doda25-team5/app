@@ -16,6 +16,11 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import frontend.data.Sms;
 import jakarta.servlet.http.HttpServletRequest;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Timer;
+import org.springframework.beans.factory.annotation.Autowired;
+
 @Controller
 @RequestMapping(path = "/sms")
 public class FrontendController {
@@ -24,10 +29,16 @@ public class FrontendController {
 
     private RestTemplateBuilder rest;
 
-    public FrontendController(RestTemplateBuilder rest, Environment env) {
+    private final Counter homepageVisits;
+    private final Timer predictionLatency;
+
+    public FrontendController(RestTemplateBuilder rest, Environment env, MeterRegistry registry) {
         this.rest = rest;
         this.modelHost = env.getProperty("MODEL_HOST");
         assertModelHost();
+
+        this.homepageVisits = registry.counter("frontend_homepage_visits_total");
+        this.predictionLatency = registry.timer("frontend_prediction_latency_seconds");
     }
 
     private void assertModelHost() {
@@ -53,6 +64,7 @@ public class FrontendController {
 
     @GetMapping("/")
     public String index(Model m) {
+        homepageVisits.increment();  // increment metric
         m.addAttribute("hostname", modelHost);
         return "sms/index";
     }
@@ -60,10 +72,12 @@ public class FrontendController {
     @PostMapping({ "", "/" })
     @ResponseBody
     public Sms predict(@RequestBody Sms sms) {
-        System.out.printf("Requesting prediction for \"%s\" ...\n", sms.sms);
-        sms.result = getPrediction(sms);
-        System.out.printf("Prediction: %s\n", sms.result);
-        return sms;
+        return predictionLatency.record(() -> {   // wrap backend call with timer
+            System.out.printf("Requesting prediction for \"%s\" ...\n", sms.sms);
+            sms.result = getPrediction(sms);
+            System.out.printf("Prediction: %s\n", sms.result);
+            return sms;
+        });
     }
 
     private String getPrediction(Sms sms) {
@@ -76,3 +90,4 @@ public class FrontendController {
         }
     }
 }
+
