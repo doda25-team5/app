@@ -10,9 +10,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.MediaType;
-import java.nio.charset.StandardCharsets;
 
 import frontend.data.Sms;
 import jakarta.servlet.http.HttpServletRequest;
@@ -59,71 +56,72 @@ public class FrontendController {
     }
 
 
-@GetMapping("/metrics", produces = MediaType.TEXT_PLAIN_VALUE)
-public ResponseEntity<String> metrics() {
-    StringBuilder sb = new StringBuilder();
 
-    // Gauges
-    sb.append("# HELP frontend_inflight_requests Number of active requests\n");
-    sb.append("# TYPE frontend_inflight_requests gauge\n");
-    sb.append("frontend_inflight_requests ").append(inflight.get()).append("\n");
+    @GetMapping(path = "/metrics", produces = "text/plain")
+    @ResponseBody
+    public String metrics() {
+        StringBuilder sb = new StringBuilder();
+        // Gauges
+        sb.append("# HELP frontend_inflight_requests Number of active requests\n");
+        sb.append("# TYPE frontend_inflight_requests gauge\n");
+        sb.append("frontend_inflight_requests ").append(inflight.get()).append("\n\n");
 
-    sb.append("# HELP frontend_backend_status Backend health (1=up,0=down)\n");
-    sb.append("# TYPE frontend_backend_status gauge\n");
-    sb.append("frontend_backend_status ").append(backendStatus.get()).append("\n");
+        sb.append("# HELP frontend_backend_status Backend health (1=up,0=down)\n");
+        sb.append("# TYPE frontend_backend_status gauge\n");
+        sb.append("frontend_backend_status ").append(backendStatus.get()).append("\n\n");
 
-    // Counters
-    sb.append("# HELP sms_validation_error_total Count of validation errors\n");
-    sb.append("# TYPE sms_validation_error_total counter\n");
-    sb.append("sms_validation_error_total{reason=\"empty\"} ")
-        .append(validationErrorsEmpty.get()).append("\n");
+        // Counters
+        sb.append("# HELP sms_validation_error_total Count of validation errors\n");
+        sb.append("# TYPE sms_validation_error_total counter\n");
+        sb.append("sms_validation_error_total{reason=\"empty\"} ")
+          .append(validationErrorsEmpty.get()).append("\n\n");
 
-    sb.append("# HELP sms_verdict_total SMS verdict count by label\n");
-    sb.append("# TYPE sms_verdict_total counter\n");
-    sb.append("sms_verdict_total{verdict=\"ham\"} ").append(verdictHam.get()).append("\n");
-    sb.append("sms_verdict_total{verdict=\"spam\"} ").append(verdictSpam.get()).append("\n");
+        sb.append("# HELP sms_verdict_total SMS verdict count by label\n");
+        sb.append("# TYPE sms_verdict_total counter\n");
+        sb.append("sms_verdict_total{verdict=\"ham\"} ").append(verdictHam.get()).append("\n");
+        sb.append("sms_verdict_total{verdict=\"spam\"} ").append(verdictSpam.get()).append("\n\n");
 
-    // Histogram (Latency)
-    sb.append("# HELP frontend_prediction_latency_seconds End-to-end latency\n");
-    sb.append("# TYPE frontend_prediction_latency_seconds histogram\n");
+        // Histogram (Latency)
+        sb.append("# HELP frontend_prediction_latency_seconds End-to-end latency\n");
+        sb.append("# TYPE frontend_prediction_latency_seconds histogram\n");
 
-    long cumulative = 0;
-    for (int i = 0; i < latencyBuckets.length; i++) {
-        cumulative += latencyBucketCounts[i].get();
-        sb.append("frontend_prediction_latency_seconds_bucket{le=\"")
-            .append(latencyBuckets[i]).append("\"} ").append(cumulative).append("\n");
+        long cumulative = 0;
+        for (int i = 0; i < latencyBuckets.length; i++) {
+            cumulative += latencyBucketCounts[i].get();
+            sb.append("frontend_prediction_latency_seconds_bucket{le=\"")
+              .append(latencyBuckets[i]).append("\"} ").append(cumulative).append("\n");
+        }
+        cumulative += latencyBucketCounts[latencyBuckets.length].get();
+
+        sb.append("frontend_prediction_latency_seconds_bucket{le=\"+Inf\"} ")
+          .append(cumulative).append("\n");
+
+        sb.append("frontend_prediction_latency_seconds_sum ")
+          .append(latencySumMicros.get() / 1_000_000.0).append("\n");
+
+        sb.append("frontend_prediction_latency_seconds_count ")
+          .append(latencyCount.get()).append("\n\n");
+
+        // Histogram (Word Count)
+        sb.append("# HELP sms_input_word_count Word count distribution\n");
+        sb.append("# TYPE sms_input_word_count histogram\n");
+
+        long wcCum = 0;
+        for (int i = 0; i < wcBuckets.length; i++) {
+            wcCum += wcBucketCounts[i].get();
+            sb.append("sms_input_word_count_bucket{le=\"")
+              .append(wcBuckets[i]).append("\"} ").append(wcCum).append("\n");
+        }
+        wcCum += wcBucketCounts[wcBuckets.length].get();
+
+        sb.append("sms_input_word_count_bucket{le=\"+Inf\"} ")
+          .append(wcCum).append("\n");
+        sb.append("sms_input_word_count_sum ").append(wcSum.get()).append("\n");
+        sb.append("sms_input_word_count_count ").append(wcCount.get()).append("\n");
+
+        return sb.toString().trim() + "\n";
     }
-    cumulative += latencyBucketCounts[latencyBuckets.length].get();
 
-    sb.append("frontend_prediction_latency_seconds_bucket{le=\"+Inf\"} ")
-        .append(cumulative).append("\n");
-    sb.append("frontend_prediction_latency_seconds_sum ")
-        .append(latencySumMicros.get() / 1_000_000.0).append("\n");
-    sb.append("frontend_prediction_latency_seconds_count ")
-        .append(latencyCount.get()).append("\n");
-
-    // Histogram (Word Count)
-    sb.append("# HELP sms_input_word_count Word count distribution\n");
-    sb.append("# TYPE sms_input_word_count histogram\n");
-
-    long wcCum = 0;
-    for (int i = 0; i < wcBuckets.length; i++) {
-        wcCum += wcBucketCounts[i].get();
-        sb.append("sms_input_word_count_bucket{le=\"")
-            .append(wcBuckets[i]).append("\"} ").append(wcCum).append("\n");
-    }
-    wcCum += wcBucketCounts[wcBuckets.length].get();
-
-    sb.append("sms_input_word_count_bucket{le=\"+Inf\"} ")
-        .append(wcCum).append("\n");
-    sb.append("sms_input_word_count_sum ").append(wcSum.get()).append("\n");
-    sb.append("sms_input_word_count_count ").append(wcCount.get()).append("\n");
-
-    return ResponseEntity
-        .ok()
-        .contentType(MediaType.TEXT_PLAIN)
-        .body(sb.toString());
-}
 
     @GetMapping("/sms")
     public String redirectSlash(HttpServletRequest req) {
@@ -135,6 +133,7 @@ public ResponseEntity<String> metrics() {
         m.addAttribute("hostname", modelHost);
         return "sms/index";
     }
+
 
   
     @PostMapping({"/sms", "/sms/"})
