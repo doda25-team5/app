@@ -3,95 +3,133 @@ package frontend.ctrl;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import frontend.data.Sms;
 import jakarta.servlet.http.HttpServletRequest;
 
-
-import io.micrometer.prometheus.PrometheusMeterRegistry;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Gauge;
-import io.micrometer.core.instrument.Timer;
-import io.micrometer.core.instrument.DistributionSummary;
-
 @Controller
-// NOTE: I removed @RequestMapping("/sms") from here so we can have /metrics at the root
 public class FrontendController {
 
-    private String modelHost;
-    private RestTemplateBuilder rest;
-    
+    private final RestTemplateBuilder rest;
+    private final String modelHost;
+    // Gauges
+    private final AtomicInteger inflight = new AtomicInteger(0);
+    private final AtomicInteger backendStatus = new AtomicInteger(1);  // 1=UP, 0=DOWN
 
-    private final PrometheusMeterRegistry registry; 
+    // Counters
+    private final AtomicLong validationErrorsEmpty = new AtomicLong(0);
+    private final AtomicLong verdictHam = new AtomicLong(0);
+    private final AtomicLong verdictSpam = new AtomicLong(0);
 
-    private final AtomicInteger inflightRequests;
-    private final AtomicInteger backendStatus;
+    // Histogram: latency (seconds)
+    private final double[] latencyBuckets = {0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5};
+    private final AtomicLong[] latencyBucketCounts = new AtomicLong[latencyBuckets.length + 1]; // +Inf bucket
+    private final AtomicLong latencyCount = new AtomicLong(0);        
+    private final AtomicLong latencySumMicros = new AtomicLong(0);    
 
+    // Histogram: word count
+    private final double[] wcBuckets = {1, 5, 10, 20, 50, 100};
+    private final AtomicLong[] wcBucketCounts = new AtomicLong[wcBuckets.length + 1]; // +Inf
+    private final AtomicLong wcCount = new AtomicLong(0);      
+    private final AtomicLong wcSum = new AtomicLong(0);        
 
-    private final Timer latencyTimer;
-    private final DistributionSummary wordCountSummary;
-
-    public FrontendController(RestTemplateBuilder rest, Environment env, PrometheusMeterRegistry registry) {
+    public FrontendController(RestTemplateBuilder rest, Environment env) {
         this.rest = rest;
-        this.modelHost = env.getProperty("MODEL_HOST");
-        this.registry = registry;
-        assertModelHost();
 
+        this.modelHost = env.getProperty("MODEL_HOST", "").trim();
+        if (!modelHost.startsWith("http")) {
+            throw new RuntimeException("MODEL_HOST must include protocol (e.g., http://sms-backend-svc:8081)");
+        }
 
-        this.inflightRequests = new AtomicInteger(0);
-        Gauge.builder("frontend_inflight_requests", inflightRequests, AtomicInteger::get)
-                .description("Number of requests currently being processed")
-                .register(registry);
+        for (int i = 0; i < latencyBucketCounts.length; i++)
+            latencyBucketCounts[i] = new AtomicLong(0);
 
-        this.backendStatus = new AtomicInteger(1);
-        Gauge.builder("frontend_backend_status", backendStatus, AtomicInteger::get)
-                .description("Status of connection to model-service")
-                .register(registry);
-
-        this.latencyTimer = Timer.builder("frontend_prediction_latency_seconds")
-                .description("End-to-end prediction time")
-                .publishPercentileHistogram()
-                .register(registry);
-
-        this.wordCountSummary = DistributionSummary.builder("sms_input_word_count")
-                .description("Word count distribution")
-                .baseUnit("words")
-                .publishPercentileHistogram()
-                .register(registry);
+        for (int i = 0; i < wcBucketCounts.length; i++)
+            wcBucketCounts[i] = new AtomicLong(0);
     }
+
 
 
     @GetMapping("/metrics")
     @ResponseBody
     public String metrics() {
 
-        return registry.scrape();
+        StringBuilder sb = new StringBuilder();
+
+        // Gauges
+        sb.append("# HELP frontend_inflight_requests Number of active requests\n");
+        sb.append("# TYPE frontend_inflight_requests gauge\n");
+        sb.append("frontend_inflight_requests ").append(inflight.get()).append("\n\n");
+
+        sb.append("# HELP frontend_backend_status Backend health (1=up,0=down)\n");
+        sb.append("# TYPE frontend_backend_status gauge\n");
+        sb.append("frontend_backend_status ").append(backendStatus.get()).append("\n\n");
+
+
+        // Counters
+        sb.append("# HELP sms_validation_error_total Count of validation errors\n");
+        sb.append("# TYPE sms_validation_error_total counter\n");
+        sb.append("sms_validation_error_total{reason=\"empty\"} ")
+          .append(validationErrorsEmpty.get()).append("\n\n");
+
+        sb.append("# HELP sms_verdict_total SMS verdict count by label\n");
+        sb.append("# TYPE sms_verdict_total counter\n");
+        sb.append("sms_verdict_total{verdict=\"ham\"} ").append(verdictHam.get()).append("\n");
+        sb.append("sms_verdict_total{verdict=\"spam\"} ").append(verdictSpam.get()).append("\n\n");
+
+
+        // Histogram (Latency)
+        sb.append("# HELP frontend_prediction_latency_seconds End-to-end latency\n");
+        sb.append("# TYPE frontend_prediction_latency_seconds histogram\n");
+
+        long cumulative = 0;
+        for (int i = 0; i < latencyBuckets.length; i++) {
+            cumulative += latencyBucketCounts[i].get();
+            sb.append("frontend_prediction_latency_seconds_bucket{le=\"")
+              .append(latencyBuckets[i]).append("\"} ").append(cumulative).append("\n");
+        }
+        cumulative += latencyBucketCounts[latencyBuckets.length].get();
+
+        sb.append("frontend_prediction_latency_seconds_bucket{le=\"+Inf\"} ")
+          .append(cumulative).append("\n");
+
+        sb.append("frontend_prediction_latency_seconds_sum ")
+          .append(latencySumMicros.get() / 1_000_000.0).append("\n"); // convert µs → seconds
+
+        sb.append("frontend_prediction_latency_seconds_count ")
+          .append(latencyCount.get()).append("\n\n");
+
+
+        sb.append("# HELP sms_input_word_count Word count distribution\n");
+        sb.append("# TYPE sms_input_word_count histogram\n");
+
+        long wcCum = 0;
+        for (int i = 0; i < wcBuckets.length; i++) {
+            wcCum += wcBucketCounts[i].get();
+            sb.append("sms_input_word_count_bucket{le=\"")
+              .append(wcBuckets[i]).append("\"} ").append(wcCum).append("\n");
+        }
+        wcCum += wcBucketCounts[wcBuckets.length].get();
+
+        sb.append("sms_input_word_count_bucket{le=\"+Inf\"} ")
+          .append(wcCum).append("\n");
+        sb.append("sms_input_word_count_sum ").append(wcSum.get()).append("\n");
+        sb.append("sms_input_word_count_count ").append(wcCount.get()).append("\n");
+
+        return sb.toString();
     }
 
-    private void assertModelHost() {
-        if (modelHost == null || modelHost.strip().isEmpty()) {
-            System.err.println("ERROR: ENV variable MODEL_HOST is null");
-            System.exit(1);
-        }
-        modelHost = modelHost.strip();
-        if (modelHost.indexOf("://") == -1) {
-            System.err.printf("ERROR: MODEL_HOST missing protocol (was: \"%s\")\n", modelHost);
-            System.exit(1);
-        }
-    }
 
     @GetMapping("/sms")
-    public String redirectToSlash(HttpServletRequest request) {
-        return "redirect:" + request.getRequestURI() + "/";
+    public String redirectSlash(HttpServletRequest req) {
+        return "redirect:" + req.getRequestURI() + "/";
     }
 
     @GetMapping("/sms/")
@@ -100,51 +138,78 @@ public class FrontendController {
         return "sms/index";
     }
 
-    @PostMapping({ "/sms", "/sms/" })
+
+  
+    @PostMapping({"/sms", "/sms/"})
     @ResponseBody
     public Sms predict(@RequestBody Sms sms) {
-        inflightRequests.incrementAndGet(); // Gauge Up
 
-        // Metric: Validation Error
-        if (sms.sms == null || sms.sms.trim().isEmpty()) {
-            Counter.builder("sms_validation_error_total")
-                   .tag("reason", "empty").register(registry).increment();
-            inflightRequests.decrementAndGet();
-            sms.result = "error: empty";
-            return sms;
-        }
-
-        // Metric: Word Count
-        wordCountSummary.record(sms.sms.trim().split("\\s+").length);
+        inflight.incrementAndGet();
+        long start = System.nanoTime();
 
         try {
-            return latencyTimer.record(() -> {
-                try {
-                    sms.result = getPrediction(sms);
-                    backendStatus.set(1); 
-                    
-                    Counter.builder("sms_verdict_total")
-                           .tag("verdict", sms.result.toLowerCase())
-                           .register(registry).increment();
-                           
-                } catch (Exception e) {
-                    backendStatus.set(0); // Backend Down
-                    throw e;
-                }
+
+            if (sms.sms == null || sms.sms.trim().isEmpty()) {
+                validationErrorsEmpty.incrementAndGet();
+                sms.result = "error: empty";
                 return sms;
-            });
-        } finally {
-            inflightRequests.decrementAndGet(); // Gauge Down
-        }
-    }
+            }
 
-    private String getPrediction(Sms sms) {
-        try {
-            var url = new URI(modelHost + "/predict");
-            var c = rest.build().postForEntity(url, sms, Sms.class);
-            return c.getBody().result.trim();
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
+            // Word Count Hist
+            int wc = sms.sms.trim().split("\\s+").length;
+            wcSum.addAndGet(wc);
+            wcCount.incrementAndGet();
+
+            boolean wcPlaced = false;
+            for (int i = 0; i < wcBuckets.length; i++) {
+                if (wc <= wcBuckets[i]) {
+                    wcBucketCounts[i].incrementAndGet();
+                    wcPlaced = true;
+                    break;
+                }
+            }
+            if (!wcPlaced)
+                wcBucketCounts[wcBuckets.length].incrementAndGet(); // +Inf bucket
+
+
+            // Backend Prediction
+            try {
+                var url = new URI(modelHost + "/predict");
+                var resp = rest.build().postForEntity(url, sms, Sms.class);
+                sms.result = resp.getBody().result.trim();
+                backendStatus.set(1);
+
+                if (sms.result.equalsIgnoreCase("ham")) verdictHam.incrementAndGet();
+                else verdictSpam.incrementAndGet();
+
+            } catch (Exception e) {
+                backendStatus.set(0);
+                sms.result = "error: backend unavailable";
+            }
+
+            return sms;
+
+        } finally {
+            // Latency histogram
+            long durNanos = System.nanoTime() - start;
+            long durMicros = durNanos / 1000;
+            double seconds = durMicros / 1_000_000.0;
+
+            latencySumMicros.addAndGet(durMicros);
+            latencyCount.incrementAndGet();
+
+            boolean placed = false;
+            for (int i = 0; i < latencyBuckets.length; i++) {
+                if (seconds <= latencyBuckets[i]) {
+                    latencyBucketCounts[i].incrementAndGet();
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed)
+                latencyBucketCounts[latencyBuckets.length].incrementAndGet(); // +Inf
+
+            inflight.decrementAndGet();
         }
     }
 }
