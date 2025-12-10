@@ -56,10 +56,8 @@ public class FrontendController {
     }
 
 
-
-    @GetMapping("/metrics")
-    @ResponseBody
-    public String metrics() {
+    @GetMapping("/metrics", produces = "text/plain")
+        public ResponseEntity<byte[]> metrics() {
 
         StringBuilder sb = new StringBuilder();
 
@@ -123,7 +121,12 @@ public class FrontendController {
         sb.append("sms_input_word_count_sum ").append(wcSum.get()).append("\n");
         sb.append("sms_input_word_count_count ").append(wcCount.get()).append("\n");
 
-        return sb.toString();
+        byte[] body = sb.toString().getBytes(StandardCharsets.UTF_8);
+
+        return ResponseEntity
+                .ok()
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(body);
     }
 
 
@@ -137,7 +140,6 @@ public class FrontendController {
         m.addAttribute("hostname", modelHost);
         return "sms/index";
     }
-
 
   
     @PostMapping({"/sms", "/sms/"})
