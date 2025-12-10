@@ -59,81 +59,71 @@ public class FrontendController {
     }
 
 
-    @GetMapping("/metrics", produces = org.springframework.http.MediaType.TEXT_PLAIN_VALUE)
-    public org.springframework.http.ResponseEntity<byte[]> metrics() {
+@GetMapping("/metrics", produces = MediaType.TEXT_PLAIN_VALUE)
+public ResponseEntity<String> metrics() {
+    StringBuilder sb = new StringBuilder();
 
-        StringBuilder sb = new StringBuilder();
+    // Gauges
+    sb.append("# HELP frontend_inflight_requests Number of active requests\n");
+    sb.append("# TYPE frontend_inflight_requests gauge\n");
+    sb.append("frontend_inflight_requests ").append(inflight.get()).append("\n");
 
-        // Gauges
-        sb.append("# HELP frontend_inflight_requests Number of active requests\n");
-        sb.append("# TYPE frontend_inflight_requests gauge\n");
-        sb.append("frontend_inflight_requests ").append(inflight.get()).append("\n\n");
+    sb.append("# HELP frontend_backend_status Backend health (1=up,0=down)\n");
+    sb.append("# TYPE frontend_backend_status gauge\n");
+    sb.append("frontend_backend_status ").append(backendStatus.get()).append("\n");
 
-        sb.append("# HELP frontend_backend_status Backend health (1=up,0=down)\n");
-        sb.append("# TYPE frontend_backend_status gauge\n");
-        sb.append("frontend_backend_status ").append(backendStatus.get()).append("\n\n");
+    // Counters
+    sb.append("# HELP sms_validation_error_total Count of validation errors\n");
+    sb.append("# TYPE sms_validation_error_total counter\n");
+    sb.append("sms_validation_error_total{reason=\"empty\"} ")
+        .append(validationErrorsEmpty.get()).append("\n");
 
+    sb.append("# HELP sms_verdict_total SMS verdict count by label\n");
+    sb.append("# TYPE sms_verdict_total counter\n");
+    sb.append("sms_verdict_total{verdict=\"ham\"} ").append(verdictHam.get()).append("\n");
+    sb.append("sms_verdict_total{verdict=\"spam\"} ").append(verdictSpam.get()).append("\n");
 
-        // Counters
-        sb.append("# HELP sms_validation_error_total Count of validation errors\n");
-        sb.append("# TYPE sms_validation_error_total counter\n");
-        sb.append("sms_validation_error_total{reason=\"empty\"} ")
-          .append(validationErrorsEmpty.get()).append("\n\n");
+    // Histogram (Latency)
+    sb.append("# HELP frontend_prediction_latency_seconds End-to-end latency\n");
+    sb.append("# TYPE frontend_prediction_latency_seconds histogram\n");
 
-        sb.append("# HELP sms_verdict_total SMS verdict count by label\n");
-        sb.append("# TYPE sms_verdict_total counter\n");
-        sb.append("sms_verdict_total{verdict=\"ham\"} ").append(verdictHam.get()).append("\n");
-        sb.append("sms_verdict_total{verdict=\"spam\"} ").append(verdictSpam.get()).append("\n\n");
-
-
-        // Histogram (Latency)
-        sb.append("# HELP frontend_prediction_latency_seconds End-to-end latency\n");
-        sb.append("# TYPE frontend_prediction_latency_seconds histogram\n");
-
-        long cumulative = 0;
-        for (int i = 0; i < latencyBuckets.length; i++) {
-            cumulative += latencyBucketCounts[i].get();
-            sb.append("frontend_prediction_latency_seconds_bucket{le=\"")
-              .append(latencyBuckets[i]).append("\"} ").append(cumulative).append("\n");
-        }
-        cumulative += latencyBucketCounts[latencyBuckets.length].get();
-
-        sb.append("frontend_prediction_latency_seconds_bucket{le=\"+Inf\"} ")
-          .append(cumulative).append("\n");
-
-        sb.append("frontend_prediction_latency_seconds_sum ")
-          .append(latencySumMicros.get() / 1_000_000.0).append("\n"); // convert µs → seconds
-
-        sb.append("frontend_prediction_latency_seconds_count ")
-          .append(latencyCount.get()).append("\n\n");
-
-
-        sb.append("# HELP sms_input_word_count Word count distribution\n");
-        sb.append("# TYPE sms_input_word_count histogram\n");
-
-        long wcCum = 0;
-        for (int i = 0; i < wcBuckets.length; i++) {
-            wcCum += wcBucketCounts[i].get();
-            sb.append("sms_input_word_count_bucket{le=\"")
-              .append(wcBuckets[i]).append("\"} ").append(wcCum).append("\n");
-        }
-        wcCum += wcBucketCounts[wcBuckets.length].get();
-
-        sb.append("sms_input_word_count_bucket{le=\"+Inf\"} ")
-          .append(wcCum).append("\n");
-        sb.append("sms_input_word_count_sum ").append(wcSum.get()).append("\n");
-        sb.append("sms_input_word_count_count ").append(wcCount.get()).append("\n");
-
-
-        String metricsString = sb.toString().trim();
-
-        byte[] body = metricsString.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-
-        return org.springframework.http.ResponseEntity
-                .ok()
-                .contentType(org.springframework.http.MediaType.TEXT_PLAIN)
-                .body(body);
+    long cumulative = 0;
+    for (int i = 0; i < latencyBuckets.length; i++) {
+        cumulative += latencyBucketCounts[i].get();
+        sb.append("frontend_prediction_latency_seconds_bucket{le=\"")
+            .append(latencyBuckets[i]).append("\"} ").append(cumulative).append("\n");
     }
+    cumulative += latencyBucketCounts[latencyBuckets.length].get();
+
+    sb.append("frontend_prediction_latency_seconds_bucket{le=\"+Inf\"} ")
+        .append(cumulative).append("\n");
+    sb.append("frontend_prediction_latency_seconds_sum ")
+        .append(latencySumMicros.get() / 1_000_000.0).append("\n");
+    sb.append("frontend_prediction_latency_seconds_count ")
+        .append(latencyCount.get()).append("\n");
+
+    // Histogram (Word Count)
+    sb.append("# HELP sms_input_word_count Word count distribution\n");
+    sb.append("# TYPE sms_input_word_count histogram\n");
+
+    long wcCum = 0;
+    for (int i = 0; i < wcBuckets.length; i++) {
+        wcCum += wcBucketCounts[i].get();
+        sb.append("sms_input_word_count_bucket{le=\"")
+            .append(wcBuckets[i]).append("\"} ").append(wcCum).append("\n");
+    }
+    wcCum += wcBucketCounts[wcBuckets.length].get();
+
+    sb.append("sms_input_word_count_bucket{le=\"+Inf\"} ")
+        .append(wcCum).append("\n");
+    sb.append("sms_input_word_count_sum ").append(wcSum.get()).append("\n");
+    sb.append("sms_input_word_count_count ").append(wcCount.get()).append("\n");
+
+    return ResponseEntity
+        .ok()
+        .contentType(MediaType.TEXT_PLAIN)
+        .body(sb.toString());
+}
 
     @GetMapping("/sms")
     public String redirectSlash(HttpServletRequest req) {
