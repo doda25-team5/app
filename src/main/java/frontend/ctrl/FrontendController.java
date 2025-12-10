@@ -11,6 +11,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import java.nio.charset.StandardCharsets;
 
 import frontend.data.Sms;
 import jakarta.servlet.http.HttpServletRequest;
