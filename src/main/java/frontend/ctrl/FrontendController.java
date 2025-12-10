@@ -59,8 +59,8 @@ public class FrontendController {
     }
 
 
-    @GetMapping("/metrics", produces = "text/plain")
-        public ResponseEntity<byte[]> metrics() {
+    @GetMapping("/metrics", produces = org.springframework.http.MediaType.TEXT_PLAIN_VALUE)
+    public org.springframework.http.ResponseEntity<byte[]> metrics() {
 
         StringBuilder sb = new StringBuilder();
 
@@ -124,14 +124,16 @@ public class FrontendController {
         sb.append("sms_input_word_count_sum ").append(wcSum.get()).append("\n");
         sb.append("sms_input_word_count_count ").append(wcCount.get()).append("\n");
 
-        byte[] body = sb.toString().getBytes(StandardCharsets.UTF_8);
 
-        return ResponseEntity
+        String metricsString = sb.toString().trim();
+
+        byte[] body = metricsString.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        return org.springframework.http.ResponseEntity
                 .ok()
-                .contentType(MediaType.TEXT_PLAIN)
+                .contentType(org.springframework.http.MediaType.TEXT_PLAIN)
                 .body(body);
     }
-
 
     @GetMapping("/sms")
     public String redirectSlash(HttpServletRequest req) {
