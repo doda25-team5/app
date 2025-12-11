@@ -1,28 +1,58 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>SMS Checker</title>
-<link rel="stylesheet" th:href="@{/sms/format.css}" />
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script th:src="@{/sms/script.js}"></script>
+    <meta charset="UTF-8" />
+    <title>SMS Checker</title>
+
+    <link rel="stylesheet" th:href="@{/sms/format.css}" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script th:src="@{/sms/script.js}"></script>
 </head>
+
 <body>
-<span id="hostname" th:text="${hostname}"></span>
-<h1>SMS Checker</h1>
+    <span id="hostname" th:text="${hostname}"></span>
 
-<form>
+    <main class="page">
+        <header class="hero">
+            <div class="pill">Model Demo</div>
+            <h1>SMS Checker</h1>
+            <p>Paste an SMS, choose your guess, and see whether the classifier agrees.</p>
+        </header>
 
-<textarea>Example SMS ...</textarea><br />
+        <section class="card">
+            <form class="sms-form">
 
-<div class="radio">
-	<input type="radio" name="guess" value="ham" checked="checked" /> Ham<br />
-	<input type="radio" name="guess" value="spam" /> Spam<br />
-</div>
+                <label for="sms-input" class="field-label">Message</label>
+                <div class="textarea-wrap">
+                    <textarea id="sms-input" placeholder="Paste or type your SMS here..."></textarea>
+                </div>
 
-<button>Send</button>
-</form>
+                <div class="field-group">
+                    <div class="field-label">Your guess</div>
+                    <div class="radio-grid">
+                        <label class="radio-tile">
+                            <input type="radio" name="guess" value="ham" checked>
+                            <span class="radio-content">
+                                <strong>Ham</strong>
+                                <small>Looks safe / normal</small>
+                            </span>
+                        </label>
 
-<p id="result"></p>
+                        <label class="radio-tile">
+                            <input type="radio" name="guess" value="spam">
+                            <span class="radio-content">
+                                <strong>Spam</strong>
+                                <small>Looks suspicious</small>
+                            </span>
+                        </label>
+                    </div>
+                </div>
 
+                <button type="submit" class="primary-btn">Check Message</button>
+                <p id="result" class="result"></p>
+
+            </form>
+        </section>
+    </main>
 </body>
 </html>
