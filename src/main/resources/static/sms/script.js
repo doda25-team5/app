@@ -1,5 +1,16 @@
 $(document).ready(function() {
 
+	function updateSelectedTile() {
+        $(".radio-tile").removeClass("selected");
+        $("input[name='guess']:checked").closest(".radio-tile").addClass("selected");
+    }
+
+    // Highlight on click
+    $("input[name='guess']").on("change", updateSelectedTile);
+
+    // Highlight default selected radio on load
+    updateSelectedTile();
+
 	function getSMS() {
 		return $("textarea").val().trim()
 	}
